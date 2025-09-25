@@ -1,5 +1,6 @@
 'use server';
 
+import { marked } from 'marked';
 import {
   AIProviderManager,
   getAvailableProviders,
@@ -11,6 +12,16 @@ import {
   getSelectedOllamaModel as getSelectedOllamaModelFromLib,
   getSelectedGroqModel as getSelectedGroqModelFromLib
 } from '../lib/ai_providers';
+
+// Markdown rendering utility
+const renderMarkdown = (markdown: string): string => {
+  try {
+    return marked(markdown) as string;
+  } catch (error) {
+    console.warn('Failed to render markdown, returning original text:', error);
+    return markdown;
+  }
+};
 import { 
   BriefingItem, 
   GenerateBriefingResponse, 
@@ -31,7 +42,7 @@ export async function getProviders(): Promise<AIProvider[]> {
 
 // Generate briefing for user interests
 export async function generateBriefing(
-  interests: string[], 
+  interests: string[],
   summaryLength: SummaryLength,
   provider: AIProvider = 'gemini'
 ): Promise<GenerateBriefingResponse> {
@@ -48,6 +59,28 @@ export async function generateBriefing(
       return {
         briefings: [],
         errors: ['No AI providers available. Please configure at least one provider.']
+      };
+    }
+  }
+
+  // Check if Groq model is selected
+  if (provider === 'groq') {
+    const selectedModel = await getSelectedGroqModel();
+    if (!selectedModel) {
+      return {
+        briefings: [],
+        errors: ['No Groq model selected. Please select a model from the settings panel before generating briefings.']
+      };
+    }
+  }
+
+  // Check if Ollama model is selected
+  if (provider === 'ollama') {
+    const selectedModel = await getSelectedOllamaModel();
+    if (!selectedModel) {
+      return {
+        briefings: [],
+        errors: ['No Ollama model selected. Please select a model from the settings panel before generating briefings.']
       };
     }
   }
@@ -69,7 +102,7 @@ export async function generateBriefing(
         // Add error briefing item
         briefings.push({
           interest: interests[index],
-          summary: 'Failed to generate summary due to an error.',
+          summary: '<p>Failed to generate summary due to an error.</p>',
           sources: [],
           tweets: [],
           error: errorMessage
@@ -105,6 +138,28 @@ export async function generateTrendingBriefing(
       }
     }
 
+    // Check if Groq model is selected
+    if (provider === 'groq') {
+      const selectedModel = await getSelectedGroqModel();
+      if (!selectedModel) {
+        return {
+          briefings: [],
+          errors: ['No Groq model selected. Please select a model from the settings panel before generating trending briefings.']
+        };
+      }
+    }
+
+    // Check if Ollama model is selected
+    if (provider === 'ollama') {
+      const selectedModel = await getSelectedOllamaModel();
+      if (!selectedModel) {
+        return {
+          briefings: [],
+          errors: ['No Ollama model selected. Please select a model from the settings panel before generating trending briefings.']
+        };
+      }
+    }
+
     // Get trending topics
     const topics = await AIProviderManager.getTrendingTopics(provider);
     
@@ -133,7 +188,7 @@ export async function generateTrendingBriefing(
         errors.push(`Failed to generate briefing for trending topic "${topics[index].title}": ${errorMessage}`);
         briefings.push({
           interest: topics[index].title,
-          summary: 'Failed to generate summary due to an error.',
+          summary: '<p>Failed to generate summary due to an error.</p>',
           sources: [],
           tweets: [],
           error: errorMessage
@@ -184,7 +239,7 @@ async function generateSingleBriefingForInterest(
 
     return {
       interest,
-      summary: summary.trim(),
+      summary: renderMarkdown(summary.trim()),
       sources: sources || [],
       tweets: tweets.slice(0, 3) // Ensure only 3 tweets
     };
@@ -210,7 +265,23 @@ export async function testProviderConnection(provider: AIProvider): Promise<{
       };
     }
 
-    // Test with a simple request
+    // For Groq, just test by listing models (no default model selection)
+    if (provider === 'groq') {
+      const models = await listGroqModels();
+      if (models.length > 0) {
+        return {
+          success: true,
+          message: `${provider} is connected! ${models.length} models available. Please select a model to use.`
+        };
+      } else {
+        return {
+          success: false,
+          message: `${provider} connected but no models available.`
+        };
+      }
+    }
+
+    // For other providers, test with a simple generation request
     const testResult = await AIProviderManager.generateSummary(
       provider,
       'artificial intelligence',

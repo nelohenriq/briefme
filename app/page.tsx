@@ -127,6 +127,48 @@ export default function DailyBriefingApp() {
     });
   }, []);
 
+  // Handle provider change with auto-testing
+  const handleProviderChange = async (provider: AIProvider) => {
+    setSelectedProvider(provider);
+    // Clear existing models when switching providers
+    if (provider === "gemini") {
+      setAvailableModels(prev => ({ ...prev, groq: [], ollama: [] }));
+      setSelectedModels(prev => ({ ...prev, groq: null, ollama: null }));
+    } else if (provider === "groq") {
+      setAvailableModels(prev => ({ ...prev, ollama: [] }));
+      setSelectedModels(prev => ({ ...prev, ollama: null }));
+    } else if (provider === "ollama") {
+      setAvailableModels(prev => ({ ...prev, groq: [] }));
+      setSelectedModels(prev => ({ ...prev, groq: null }));
+    }
+
+    // Auto-test the new provider immediately
+    if (availableProviders.includes(provider)) {
+      setIsTestingProvider(true);
+      try {
+        const result = await testProviderConnection(provider);
+        showToast(
+          result.success ? "Provider working" : "Provider failed",
+          result.message,
+          result.success ? "default" : "destructive"
+        );
+
+        // Load models if connection successful
+        if (result.success && provider !== "gemini") {
+          await loadModelsForProvider(provider);
+        }
+      } catch (error) {
+        showToast(
+          "Test failed",
+          "Failed to test provider connection.",
+          "destructive"
+        );
+      } finally {
+        setIsTestingProvider(false);
+      }
+    }
+  };
+
   // Save preferences when they change
   useEffect(() => {
     storage.set("interests", interests);
@@ -413,7 +455,7 @@ export default function DailyBriefingApp() {
                 <select
                   value={selectedProvider}
                   onChange={(e) =>
-                    setSelectedProvider(e.target.value as AIProvider)
+                    handleProviderChange(e.target.value as AIProvider)
                   }
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
@@ -624,7 +666,7 @@ export default function DailyBriefingApp() {
                 </h2>
                 <Button variant="outline" onClick={handleDownloadBriefing}>
                   <Download className="h-4 w-4 mr-2" />
-                  Download Markdown
+                  Download Summary
                 </Button>
               </div>
 
@@ -658,9 +700,10 @@ export default function DailyBriefingApp() {
                               </p>
                             </div>
                           ) : (
-                            <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                              {briefing.summary}
-                            </p>
+                            <div
+                              className="text-gray-700 dark:text-gray-300 leading-relaxed prose prose-sm max-w-none dark:prose-invert"
+                              dangerouslySetInnerHTML={{ __html: briefing.summary }}
+                            />
                           )}
                         </div>
 

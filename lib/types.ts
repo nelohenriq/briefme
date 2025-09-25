@@ -10,7 +10,7 @@ export interface BriefingSource {
 
 export interface BriefingItem {
   interest: string;
-  summary: string;
+  summary: string; // HTML rendered version for user display
   sources: BriefingSource[];
   tweets: string[];
   error?: string;
