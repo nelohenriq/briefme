@@ -52,7 +52,7 @@ import {
   formatBriefingAsMarkdown,
 } from "@/lib/utils";
 import { BriefingItem, SummaryLength, AIProvider } from "@/lib/types";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { ThemeToggle } from "../components/theme-toggle";
 
 const DEFAULT_INTERESTS = [
   "Artificial Intelligence advancements",

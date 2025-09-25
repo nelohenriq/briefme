@@ -1,7 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Groq from 'groq-sdk';
 import { Ollama } from 'ollama';
-import { marked } from 'marked';
+import { renderMarkdown } from './markdown';
+import { searchWeb } from './search';
 import { AIProvider, SummaryLength, BriefingSource, TrendingTopic } from './types';
 
 console.log('[AI_PROVIDERS] Module loading started');
@@ -48,15 +49,7 @@ const logger = {
   error: (message: string, ...args: any[]) => console.error(`[AI_PROVIDERS] ${message}`, ...args),
 };
 
-// Markdown rendering utility
-const renderMarkdown = (markdown: string): string => {
-  try {
-    return marked(markdown) as string;
-  } catch (error) {
-    logger.warn('Failed to render markdown, returning original text:', error);
-    return markdown;
-  }
-};
+
 
 // Concrete provider implementations
 class GeminiProvider implements AIProviderInterface {
@@ -230,9 +223,12 @@ Please search for current information about this topic and provide a well-source
       max_tokens: CONFIG.DEFAULT_MAX_TOKENS.SUMMARY
     });
 
+    const content = completion.choices[0]?.message?.content || '';
+    const sources = await searchWeb(interest);
+
     return {
-      summary: renderMarkdown(completion.choices[0]?.message?.content || ''),
-      sources: []
+      summary: renderMarkdown(content),
+      sources
     };
   }
 
@@ -391,9 +387,12 @@ Provide factual information about this topic.`;
       stream: false
     });
 
+    const content = response.response || '';
+    const sources = await searchWeb(interest);
+
     return {
-      summary: renderMarkdown(response.response || ''),
-      sources: []
+      summary: renderMarkdown(content),
+      sources
     };
   }
 
@@ -569,7 +568,7 @@ export const getAvailableModels = async (provider: AIProvider): Promise<string[]
     case 'groq':
       return await listGroqModels();
     case 'gemini':
-      return ['gemini-1.5-pro']; // Gemini only has one model for now
+      return [CONFIG.GEMINI_MODEL]; // Use the configured Gemini model
     default:
       return [];
   }

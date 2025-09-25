@@ -1,6 +1,6 @@
 'use server';
 
-import { marked } from 'marked';
+import { renderMarkdown } from '@/lib/markdown';
 import {
   AIProviderManager,
   getAvailableProviders,
@@ -13,15 +13,6 @@ import {
   getSelectedGroqModel as getSelectedGroqModelFromLib
 } from '../lib/ai_providers';
 
-// Markdown rendering utility
-const renderMarkdown = (markdown: string): string => {
-  try {
-    return marked(markdown) as string;
-  } catch (error) {
-    console.warn('Failed to render markdown, returning original text:', error);
-    return markdown;
-  }
-};
 import { 
   BriefingItem, 
   GenerateBriefingResponse, 
